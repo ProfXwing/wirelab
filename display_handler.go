@@ -55,7 +55,10 @@ func (dh *DisplayHandler) DrawText(x1, y1, x2, y2 int, style tcell.Style, text s
 
 func (dh *DisplayHandler) DrawCursor(cursor *Cursor) {
 	block_handler := dh.game.block_handler
-	char := block_handler.GetBlockRune(cursor.SelectedBlockType, cursor.X, cursor.Y)
+
+	cursorBlock := block_handler.NewBlock(cursor, false)
+
+	char := block_handler.GetBlockRune(cursorBlock)
 
 	s := dh.screen
 	s.SetContent(cursor.X, cursor.Y, char, nil, dh.styles.TextStyle)
@@ -63,18 +66,11 @@ func (dh *DisplayHandler) DrawCursor(cursor *Cursor) {
 
 func (dh *DisplayHandler) DrawBlock(block *Block) {
 	block_handler := dh.game.block_handler
-	char := block_handler.GetBlockRune(block.BlockType, block.X, block.Y)
+	char := block_handler.GetBlockRune(block)
 
 	s := dh.screen
 
-	var style tcell.Style
-	if block.BlockType == RedstoneLamp && block.Powered {
-		style = dh.styles.TextStyle
-	} else {
-		style = dh.styles.DefaultStyle
-	}
-
-	s.SetContent(block.X, block.Y, char, nil, style)
+	s.SetContent(block.X, block.Y, char, nil, dh.styles.DefaultStyle)
 }
 
 func (dh *DisplayHandler) RedrawScreen() {

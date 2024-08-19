@@ -1,14 +1,13 @@
 package main
 
-import "log"
-
 type BlockType int
 
 const (
 	EmptyCursor BlockType = iota
-	RedstoneBlock
-	RedstoneLamp
-	Redstone
+	PoweredBlock
+	WiredLamp
+	Wire
+	Lever
 )
 
 type Block struct {
@@ -65,31 +64,46 @@ func (bh *BlockHandler) IsBlockType(x, y int, blockType BlockType) bool {
 	return block != nil && block.BlockType == blockType
 }
 
-func (bh *BlockHandler) GetBlockRune(blockType BlockType, x int, y int) rune {
-	var isRedstone = func(x, y int) bool {
-		return bh.IsBlockType(x, y, Redstone)
+func (bh *BlockHandler) GetBlockRune(block *Block) rune {
+	connectableBlockTypes := []BlockType{Wire, WiredLamp, PoweredBlock, Lever}
+	var canConnectToBlock = func(x, y int) bool {
+		for _, blockType := range connectableBlockTypes {
+			if bh.IsBlockType(x, y, blockType) {
+				return true
+			}
+		}
+		return false
 	}
 
-	switch blockType {
-	case EmptyCursor:
-		return 'C'
-	case RedstoneBlock:
-		return 'R'
-	case RedstoneLamp:
-		return 'L'
-	case Redstone:
-		left := isRedstone(x-1, y)
-		right := isRedstone(x+1, y)
-		down := isRedstone(x, y+1)
-		up := isRedstone(x, y-1)
+	x := block.X
+	y := block.Y
 
-		log.Printf("left: %v\n", left)
-		log.Printf("right: %v\n", right)
-		log.Printf("up: %v\n", up)
-		log.Printf("down: %v\n", left)
+	switch block.BlockType {
+	case EmptyCursor:
+		return ' '
+	case PoweredBlock:
+		return '▲'
+	case WiredLamp:
+		if block.Powered {
+			return '■'
+		} else {
+			return '□'
+		}
+	case Lever:
+		if block.Powered {
+			return '⊓'
+		} else {
+			return '⊔'
+		}
+	case Wire:
+
+		left := canConnectToBlock(x-1, y)
+		right := canConnectToBlock(x+1, y)
+		down := canConnectToBlock(x, y+1)
+		up := canConnectToBlock(x, y-1)
 
 		// Four sided
-		if left == true && up == true && right == true && down == true {
+		if left && up && right && down {
 			return '╋'
 		}
 
@@ -141,17 +155,22 @@ func (bh *BlockHandler) IsBlockPowered(x, y int) bool {
 		return f(x-1, y) || f(x+1, y) || f(x, y-1) || f(x, y+1)
 	}
 	isRedstoneBlock := func(x, y int) bool {
-		return bh.IsBlockType(x, y, RedstoneBlock)
+		return bh.IsBlockType(x, y, PoweredBlock)
 	}
 	isPoweredRedstone := func(x, y int) bool {
 		block := bh.GetBlock(x, y)
-		return block != nil && block.BlockType == Redstone && block.Powered
+		return block != nil && block.BlockType == Wire && block.Powered
+	}
+	isPoweredLever := func(x, y int) bool {
+		block := bh.GetBlock(x, y)
+		return block != nil && block.BlockType == Lever && block.Powered
 	}
 
 	connectedToRedstoneBlock := testSurroundingBlocks(x, y, isRedstoneBlock)
 	connectedToPoweredRedstone := testSurroundingBlocks(x, y, isPoweredRedstone)
+	connectedToPoweredLever := testSurroundingBlocks(x, y, isPoweredLever)
 
-	return connectedToRedstoneBlock || connectedToPoweredRedstone
+	return connectedToRedstoneBlock || connectedToPoweredRedstone || connectedToPoweredLever
 }
 
 func (bh *BlockHandler) UpdateBlock(x, y int) {
@@ -175,7 +194,7 @@ func (bh *BlockHandler) UpdateSurroundingBlocks(x, y int) {
 	bh.UpdateBlock(x, y+1)
 }
 
-func (bh *BlockHandler) NewBlock(cursor *Cursor) {
+func (bh *BlockHandler) NewBlock(cursor *Cursor, insertBlock bool) *Block {
 	x := cursor.X
 	y := cursor.Y
 
@@ -186,8 +205,12 @@ func (bh *BlockHandler) NewBlock(cursor *Cursor) {
 		Y:         y,
 	}
 
-	bh.Blocks = append(bh.Blocks, newBlock)
-	bh.SetBlock(x, y, newBlock)
+	if insertBlock {
+		bh.Blocks = append(bh.Blocks, newBlock)
+		bh.SetBlock(x, y, newBlock)
 
-	bh.UpdateSurroundingBlocks(x, y)
+		bh.UpdateSurroundingBlocks(x, y)
+	}
+
+	return newBlock
 }
