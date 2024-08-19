@@ -154,23 +154,18 @@ func (bh *BlockHandler) IsBlockPowered(x, y int) bool {
 	testSurroundingBlocks := func(x, y int, f func(x, y int) bool) bool {
 		return f(x-1, y) || f(x+1, y) || f(x, y-1) || f(x, y+1)
 	}
-	isRedstoneBlock := func(x, y int) bool {
+	isPoweredBlock := func(x, y int) bool {
 		return bh.IsBlockType(x, y, PoweredBlock)
-	}
-	isPoweredRedstone := func(x, y int) bool {
-		block := bh.GetBlock(x, y)
-		return block != nil && block.BlockType == Wire && block.Powered
 	}
 	isPoweredLever := func(x, y int) bool {
 		block := bh.GetBlock(x, y)
 		return block != nil && block.BlockType == Lever && block.Powered
 	}
 
-	connectedToRedstoneBlock := testSurroundingBlocks(x, y, isRedstoneBlock)
-	connectedToPoweredRedstone := testSurroundingBlocks(x, y, isPoweredRedstone)
+	connectedToPoweredBlock := testSurroundingBlocks(x, y, isPoweredBlock)
 	connectedToPoweredLever := testSurroundingBlocks(x, y, isPoweredLever)
 
-	return connectedToRedstoneBlock || connectedToPoweredRedstone || connectedToPoweredLever
+	return connectedToPoweredBlock || connectedToPoweredLever
 }
 
 func (bh *BlockHandler) UpdateBlock(x, y int) {
@@ -179,12 +174,37 @@ func (bh *BlockHandler) UpdateBlock(x, y int) {
 		return
 	}
 
-	newPowered := bh.IsBlockPowered(x, y)
+	if block.BlockType == Wire {
+		powered, circuit := bh.GetCircuit(block)
 
-	if block.Powered != newPowered {
-		block.Powered = newPowered
-		bh.UpdateSurroundingBlocks(x, y)
+		for _, wire := range circuit {
+			wire.Powered = powered
+			surroundingBlocks := bh.GetSurroundingBlocks(wire.X, wire.Y)
+
+			for _, block := range surroundingBlocks {
+				if block.BlockType == WiredLamp {
+					block.Powered = powered
+				}
+			}
+		}
 	}
+}
+
+func (bh *BlockHandler) GetSurroundingBlocks(x, y int) []*Block {
+	blocks := []*Block{}
+
+	left := bh.GetBlock(x-1, y)
+	right := bh.GetBlock(x+1, y)
+	up := bh.GetBlock(x, y-1)
+	down := bh.GetBlock(x, y+1)
+
+	for _, block := range []*Block{left, right, up, down} {
+		if block != nil {
+			blocks = append(blocks, block)
+		}
+	}
+
+	return blocks
 }
 
 func (bh *BlockHandler) UpdateSurroundingBlocks(x, y int) {
@@ -192,6 +212,43 @@ func (bh *BlockHandler) UpdateSurroundingBlocks(x, y int) {
 	bh.UpdateBlock(x+1, y)
 	bh.UpdateBlock(x, y-1)
 	bh.UpdateBlock(x, y+1)
+}
+
+func (bh *BlockHandler) GetCircuit(block *Block) (bool, []*Block) {
+	wires := []*Block{block}
+	powered := false
+
+	for i := 0; i < len(wires); i++ {
+		wire := wires[i]
+
+		if bh.IsBlockPowered(wire.X, wire.Y) {
+			powered = true
+		}
+
+		x, y := wire.X, wire.Y
+
+		left := bh.GetBlock(x-1, y)
+		right := bh.GetBlock(x+1, y)
+		up := bh.GetBlock(x, y-1)
+		down := bh.GetBlock(x, y+1)
+
+		for _, wire = range []*Block{left, right, up, down} {
+			if wire != nil && wire.BlockType == Wire && !contains(wires, wire) {
+				wires = append(wires, wire)
+			}
+		}
+	}
+
+	return powered, wires
+}
+
+func contains[K comparable](s []K, e K) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
 
 func (bh *BlockHandler) NewBlock(cursor *Cursor, insertBlock bool) *Block {
