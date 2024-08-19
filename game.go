@@ -11,7 +11,6 @@ type Game struct {
 	display_handler *DisplayHandler
 	block_handler   *BlockHandler
 	cursor          *Cursor
-	custom_events   chan int
 }
 
 func NewGame() *Game {
@@ -65,63 +64,60 @@ func (g *Game) HandleInput(ev *tcell.EventKey) {
 			g.cursor.Y -= 1
 		}
 
-		dh.RedrawScreen()
-
 	case tcell.KeyDown:
 		if g.cursor.Y < GameHeight-1 {
 			g.cursor.Y += 1
 		}
-		dh.RedrawScreen()
 
 	case tcell.KeyLeft:
 		if g.cursor.X > 0 {
 			g.cursor.X -= 1
 		}
-		dh.RedrawScreen()
 
 	case tcell.KeyRight:
 		if g.cursor.X < GameWidth-1 {
 			g.cursor.X += 1
 		}
-		dh.RedrawScreen()
 
 	case tcell.KeyEnter:
 		if g.cursor.SelectedBlockType == EmptyCursor {
 			x, y := g.cursor.X, g.cursor.Y
 			selectedBlock := g.block_handler.GetBlock(x, y)
 
+			if selectedBlock == nil {
+				return
+			}
+
 			if selectedBlock.BlockType == Lever {
 				selectedBlock.Powered = !selectedBlock.Powered
 
 				g.block_handler.UpdateSurroundingBlocks(x, y)
-				dh.RedrawScreen()
 			}
-
-			return
+		} else {
+			g.block_handler.NewBlock(g.cursor, true)
 		}
-
-		g.block_handler.NewBlock(g.cursor, true)
-
-		dh.RedrawScreen()
 
 	case tcell.KeyEscape:
 		g.cursor.SelectedBlockType = EmptyCursor
-		dh.RedrawScreen()
 
 	case tcell.KeyRune:
 		switch ev.Rune() {
 		case 'w':
 			g.cursor.SelectedBlockType = Wire
-			dh.RedrawScreen()
 		case 'p':
 			g.cursor.SelectedBlockType = PoweredBlock
-			dh.RedrawScreen()
 		case 'l':
 			g.cursor.SelectedBlockType = WiredLamp
-			dh.RedrawScreen()
 		case 't':
 			g.cursor.SelectedBlockType = Lever
-			dh.RedrawScreen()
+
+		default:
+			return
 		}
+	default:
+		return
 	}
+
+	// redraw screen, assuming we did something
+	dh.RedrawScreen()
 }

@@ -225,30 +225,16 @@ func (bh *BlockHandler) GetCircuit(block *Block) (bool, []*Block) {
 			powered = true
 		}
 
-		x, y := wire.X, wire.Y
+		surroundingBlocks := bh.GetSurroundingBlocks(wire.X, wire.Y)
 
-		left := bh.GetBlock(x-1, y)
-		right := bh.GetBlock(x+1, y)
-		up := bh.GetBlock(x, y-1)
-		down := bh.GetBlock(x, y+1)
-
-		for _, wire = range []*Block{left, right, up, down} {
-			if wire != nil && wire.BlockType == Wire && !contains(wires, wire) {
+		for _, wire = range surroundingBlocks {
+			if wire.BlockType == Wire && !contains(wires, wire) {
 				wires = append(wires, wire)
 			}
 		}
 	}
 
 	return powered, wires
-}
-
-func contains[K comparable](s []K, e K) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
 }
 
 func (bh *BlockHandler) NewBlock(cursor *Cursor, insertBlock bool) *Block {
