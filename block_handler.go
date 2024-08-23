@@ -11,6 +11,29 @@ const (
 	Inverter
 )
 
+func (bh *BlockHandler) WireConnectsToBlock(wire *Block, block *Block) bool {
+	fullyConnectableBlockTypes := []BlockType{Wire, WiredLamp, PoweredBlock, Lever}
+	for _, blockType := range fullyConnectableBlockTypes {
+		if block.BlockType == blockType {
+			return true
+		}
+	}
+
+	if block.BlockType == Inverter {
+		rel := bh.GetRelativeBlockPosition(wire, block)
+
+		if (rel == Left || rel == Right) && (block.Direction == Left || block.Direction == Right) {
+			return true
+		}
+
+		if (rel == Up || rel == Down) && (block.Direction == Up || block.Direction == Down) {
+			return true
+		}
+	}
+
+	return false
+}
+
 type Direction int
 
 const (
@@ -18,7 +41,28 @@ const (
 	Right
 	Up
 	Down
+	NonSurrounding
 )
+
+func (bh *BlockHandler) GetRelativeBlockPosition(fromBlock *Block, toBlock *Block) Direction {
+	relX := fromBlock.X - toBlock.X
+	relY := fromBlock.Y - toBlock.Y
+
+	if relX == -1 && relY == 0 {
+		return Left
+	}
+	if relX == 1 && relY == 0 {
+		return Right
+	}
+	if relX == 0 && relY == -1 {
+		return Up
+	}
+	if relX == 0 && relY == 1 {
+		return Down
+	}
+
+	return NonSurrounding
+}
 
 type Block struct {
 	BlockType BlockType
@@ -76,14 +120,9 @@ func (bh *BlockHandler) IsBlockType(x, y int, blockType BlockType) bool {
 }
 
 func (bh *BlockHandler) GetBlockRune(block *Block) rune {
-	connectableBlockTypes := []BlockType{Wire, WiredLamp, PoweredBlock, Lever}
 	var canConnectToBlock = func(x, y int) bool {
-		for _, blockType := range connectableBlockTypes {
-			if bh.IsBlockType(x, y, blockType) {
-				return true
-			}
-		}
-		return false
+		surroundingBlock := bh.GetBlock(x, y)
+		return surroundingBlock != nil && bh.WireConnectsToBlock(block, surroundingBlock)
 	}
 
 	x := block.X
