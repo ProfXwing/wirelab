@@ -110,6 +110,19 @@ func (g *Game) HandleInput(ev *tcell.EventKey) {
 			g.cursor.SelectedBlockType = WiredLamp
 		case 't':
 			g.cursor.SelectedBlockType = Lever
+		case 'i':
+			g.cursor.SelectedBlockType = Inverter
+		case 'r':
+			switch g.cursor.Direction {
+			case Right:
+				g.cursor.Direction = Down
+			case Down:
+				g.cursor.Direction = Left
+			case Left:
+				g.cursor.Direction = Up
+			case Up:
+				g.cursor.Direction = Right
+			}
 
 		default:
 			return

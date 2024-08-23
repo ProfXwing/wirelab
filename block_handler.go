@@ -8,6 +8,16 @@ const (
 	WiredLamp
 	Wire
 	Lever
+	Inverter
+)
+
+type Direction int
+
+const (
+	Left Direction = iota
+	Right
+	Up
+	Down
 )
 
 type Block struct {
@@ -15,6 +25,7 @@ type Block struct {
 	X         int
 	Y         int
 	Powered   bool
+	Direction Direction
 }
 
 type BlockHandler struct {
@@ -96,63 +107,79 @@ func (bh *BlockHandler) GetBlockRune(block *Block) rune {
 			return '⊔'
 		}
 	case Wire:
+		{
+			left := canConnectToBlock(x-1, y)
+			right := canConnectToBlock(x+1, y)
+			down := canConnectToBlock(x, y+1)
+			up := canConnectToBlock(x, y-1)
 
-		left := canConnectToBlock(x-1, y)
-		right := canConnectToBlock(x+1, y)
-		down := canConnectToBlock(x, y+1)
-		up := canConnectToBlock(x, y-1)
+			// Four sided
+			if left && up && right && down {
+				return '╋'
+			}
 
-		// Four sided
-		if left && up && right && down {
+			// Three sided
+			if left && up && right {
+				return '┻'
+			}
+			if up && right && down {
+				return '┣'
+			}
+			if right && down && left {
+				return '┳'
+			}
+			if down && left && up {
+				return '┫'
+			}
+
+			// Two sided, bent
+			if up && right {
+				return '┗'
+			}
+			if right && down {
+				return '┏'
+			}
+			if down && left {
+				return '┓'
+			}
+			if left && up {
+				return '┛'
+			}
+
+			// Two sided, straight
+			if up || down {
+				return '┃'
+			}
+			if left || right {
+				return '━'
+			}
+
+			// Default
 			return '╋'
 		}
-
-		// Three sided
-		if left && up && right {
-			return '┻'
+	case Inverter:
+		switch block.Direction {
+		case Left:
+			return '⊣'
+		case Right:
+			return '⊢'
+		case Down:
+			return '⊤'
+		case Up:
+			return '⊥'
 		}
-		if up && right && down {
-			return '┣'
-		}
-		if right && down && left {
-			return '┳'
-		}
-		if down && left && up {
-			return '┫'
-		}
-
-		// Two sided, bent
-		if up && right {
-			return '┗'
-		}
-		if right && down {
-			return '┏'
-		}
-		if down && left {
-			return '┓'
-		}
-		if left && up {
-			return '┛'
-		}
-
-		// Two sided, straight
-		if up || down {
-			return '┃'
-		}
-		if left || right {
-			return '━'
-		}
-
-		// Default
-		return '╋'
 	}
 
 	return ' '
 }
 
-func (bh *BlockHandler) IsBlockPowered(x, y int) bool {
+func (bh *BlockHandler) IsBlockPowered(x, y int, includeWire bool) bool {
 	testSurroundingBlocks := func(x, y int, f func(x, y int) bool) bool {
 		return f(x-1, y) || f(x+1, y) || f(x, y-1) || f(x, y+1)
+	}
+	isPoweredWire := func(x, y int) bool {
+		block := bh.GetBlock(x, y)
+		return block != nil && block.BlockType == Wire && block.Powered
 	}
 	isPoweredBlock := func(x, y int) bool {
 		return bh.IsBlockType(x, y, PoweredBlock)
@@ -164,8 +191,14 @@ func (bh *BlockHandler) IsBlockPowered(x, y int) bool {
 
 	connectedToPoweredBlock := testSurroundingBlocks(x, y, isPoweredBlock)
 	connectedToPoweredLever := testSurroundingBlocks(x, y, isPoweredLever)
+	connectedToPoweredWire := testSurroundingBlocks(x, y, isPoweredWire)
 
-	return connectedToPoweredBlock || connectedToPoweredLever
+	powered := connectedToPoweredBlock || connectedToPoweredLever
+	if includeWire {
+		powered = powered || connectedToPoweredWire
+	}
+
+	return powered
 }
 
 func (bh *BlockHandler) UpdateBlock(x, y int) {
@@ -183,7 +216,7 @@ func (bh *BlockHandler) UpdateBlock(x, y int) {
 
 			for _, block := range surroundingBlocks {
 				if block.BlockType == WiredLamp {
-					block.Powered = powered
+					block.Powered = bh.IsBlockPowered(block.X, block.Y, true)
 				}
 			}
 		}
@@ -221,7 +254,7 @@ func (bh *BlockHandler) GetCircuit(block *Block) (bool, []*Block) {
 	for i := 0; i < len(wires); i++ {
 		wire := wires[i]
 
-		if bh.IsBlockPowered(wire.X, wire.Y) {
+		if bh.IsBlockPowered(wire.X, wire.Y, false) {
 			powered = true
 		}
 
@@ -243,9 +276,10 @@ func (bh *BlockHandler) NewBlock(cursor *Cursor, insertBlock bool) *Block {
 
 	newBlock := &Block{
 		BlockType: cursor.SelectedBlockType,
-		Powered:   bh.IsBlockPowered(x, y),
+		Powered:   bh.IsBlockPowered(x, y, true),
 		X:         x,
 		Y:         y,
+		Direction: cursor.Direction,
 	}
 
 	if insertBlock {
