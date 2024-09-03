@@ -1,16 +1,18 @@
 package main
 
+import "redstone/blocks"
+
 type Cursor struct {
 	X, Y              int
-	SelectedBlockType BlockType
-	Direction         Direction
+	SelectedBlockType blocks.BlockType
+	Direction         blocks.Direction
 }
 
 func NewCursor() *Cursor {
 	return &Cursor{
 		X:                 0,
 		Y:                 0,
-		SelectedBlockType: EmptyCursor,
-		Direction:         Right,
+		SelectedBlockType: blocks.EmptyBlockType,
+		Direction:         blocks.Right,
 	}
 }

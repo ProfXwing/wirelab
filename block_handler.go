@@ -1,87 +1,17 @@
 package main
 
-type BlockType int
-
-const (
-	EmptyCursor BlockType = iota
-	PoweredBlock
-	WiredLamp
-	Wire
-	Lever
-	Inverter
-)
-
-func (bh *BlockHandler) WireConnectsToBlock(wire *Block, block *Block) bool {
-	fullyConnectableBlockTypes := []BlockType{Wire, WiredLamp, PoweredBlock, Lever}
-	for _, blockType := range fullyConnectableBlockTypes {
-		if block.BlockType == blockType {
-			return true
-		}
-	}
-
-	if block.BlockType == Inverter {
-		rel := bh.GetRelativeBlockPosition(wire, block)
-
-		if (rel == Left || rel == Right) && (block.Direction == Left || block.Direction == Right) {
-			return true
-		}
-
-		if (rel == Up || rel == Down) && (block.Direction == Up || block.Direction == Down) {
-			return true
-		}
-	}
-
-	return false
-}
-
-type Direction int
-
-const (
-	Left Direction = iota
-	Right
-	Up
-	Down
-	NonSurrounding
-)
-
-func (bh *BlockHandler) GetRelativeBlockPosition(fromBlock *Block, toBlock *Block) Direction {
-	relX := fromBlock.X - toBlock.X
-	relY := fromBlock.Y - toBlock.Y
-
-	if relX == -1 && relY == 0 {
-		return Left
-	}
-	if relX == 1 && relY == 0 {
-		return Right
-	}
-	if relX == 0 && relY == -1 {
-		return Up
-	}
-	if relX == 0 && relY == 1 {
-		return Down
-	}
-
-	return NonSurrounding
-}
-
-type Block struct {
-	BlockType BlockType
-	X         int
-	Y         int
-	Powered   bool
-	Direction Direction
-}
+import "redstone/blocks"
 
 type BlockHandler struct {
 	game   *Game
-	board  [][]*Block
-	Blocks []*Block
+	board  [][]blocks.Block
+	Blocks []blocks.Block
 }
 
 func NewBlockHandler(game *Game) *BlockHandler {
-	board := make([][]*Block, GameHeight)
+	board := make([][]blocks.Block, GameHeight)
 	for i := range board {
-		board[i] = make([]*Block, GameWidth)
+		board[i] = make([]blocks.Block, GameWidth)
 	}
 
 	return &BlockHandler{
@@ -98,7 +28,7 @@ func (bh *BlockHandler) IsValidBlockPosition(x, y int) bool {
 	return true
 }
 
-func (bh *BlockHandler) GetBlock(x int, y int) *Block {
+func (bh *BlockHandler) GetBlock(x int, y int) blocks.Block {
 	if !bh.IsValidBlockPosition(x, y) {
 		return nil
 	}
@@ -106,7 +36,7 @@ func (bh *BlockHandler) GetBlock(x int, y int) *Block {
 	return bh.board[y][x]
 }
 
-func (bh *BlockHandler) SetBlock(x int, y int, block *Block) {
+func (bh *BlockHandler) SetBlock(x int, y int, block blocks.Block) {
 	if !bh.IsValidBlockPosition(x, y) {
 		return
 	}
@@ -114,102 +44,9 @@ func (bh *BlockHandler) SetBlock(x int, y int, block *Block) {
 	bh.board[y][x] = block
 }
 
-func (bh *BlockHandler) IsBlockType(x, y int, blockType BlockType) bool {
+func (bh *BlockHandler) IsBlockType(x, y int, blockType blocks.BlockType) bool {
 	block := bh.GetBlock(x, y)
-	return block != nil && block.BlockType == blockType
-}
-
-func (bh *BlockHandler) GetBlockRune(block *Block) rune {
-	var canConnectToBlock = func(x, y int) bool {
-		surroundingBlock := bh.GetBlock(x, y)
-		return surroundingBlock != nil && bh.WireConnectsToBlock(block, surroundingBlock)
-	}
-
-	x := block.X
-	y := block.Y
-
-	switch block.BlockType {
-	case EmptyCursor:
-		return ' '
-	case PoweredBlock:
-		return '▲'
-	case WiredLamp:
-		if block.Powered {
-			return '■'
-		} else {
-			return '□'
-		}
-	case Lever:
-		if block.Powered {
-			return '⊓'
-		} else {
-			return '⊔'
-		}
-	case Wire:
-		{
-			left := canConnectToBlock(x-1, y)
-			right := canConnectToBlock(x+1, y)
-			down := canConnectToBlock(x, y+1)
-			up := canConnectToBlock(x, y-1)
-
-			// Four sided
-			if left && up && right && down {
-				return '╋'
-			}
-
-			// Three sided
-			if left && up && right {
-				return '┻'
-			}
-			if up && right && down {
-				return '┣'
-			}
-			if right && down && left {
-				return '┳'
-			}
-			if down && left && up {
-				return '┫'
-			}
-
-			// Two sided, bent
-			if up && right {
-				return '┗'
-			}
-			if right && down {
-				return '┏'
-			}
-			if down && left {
-				return '┓'
-			}
-			if left && up {
-				return '┛'
-			}
-
-			// Two sided, straight
-			if up || down {
-				return '┃'
-			}
-			if left || right {
-				return '━'
-			}
-
-			// Default
-			return '╋'
-		}
-	case Inverter:
-		switch block.Direction {
-		case Left:
-			return '⊣'
-		case Right:
-			return '⊢'
-		case Down:
-			return '⊤'
-		case Up:
-			return '⊥'
-		}
-	}
-
-	return ' '
+	return block != nil && block.GetBlockType() == blockType
 }
 
 func (bh *BlockHandler) IsBlockPowered(x, y int, includeWire bool) bool {
@@ -218,14 +55,14 @@ func (bh *BlockHandler) IsBlockPowered(x, y int, includeWire bool) bool {
 	}
 	isPoweredWire := func(x, y int) bool {
 		block := bh.GetBlock(x, y)
-		return block != nil && block.BlockType == Wire && block.Powered
+		return block != nil && block.GetBlockType() == blocks.WireType && block.IsPowered()
 	}
 	isPoweredBlock := func(x, y int) bool {
-		return bh.IsBlockType(x, y, PoweredBlock)
+		return bh.IsBlockType(x, y, blocks.PoweredBlockType)
 	}
 	isPoweredLever := func(x, y int) bool {
 		block := bh.GetBlock(x, y)
-		return block != nil && block.BlockType == Lever && block.Powered
+		return block != nil && block.GetBlockType() == blocks.LeverType && block.IsPowered()
 	}
 
 	connectedToPoweredBlock := testSurroundingBlocks(x, y, isPoweredBlock)
@@ -246,37 +83,34 @@ func (bh *BlockHandler) UpdateBlock(x, y int) {
 		return
 	}
 
-	if block.BlockType == Wire {
+	if block.GetBlockType() == blocks.WireType {
 		powered, circuit := bh.GetCircuit(block)
 
 		for _, wire := range circuit {
-			wire.Powered = powered
-			surroundingBlocks := bh.GetSurroundingBlocks(wire.X, wire.Y)
+			wire.SetPowered(powered)
+			wireX, wireY := wire.GetPosition()
+			surroundingBlocks := bh.GetSurroundingBlocks(wireX, wireY)
 
 			for _, block := range surroundingBlocks {
-				if block.BlockType == WiredLamp {
-					block.Powered = bh.IsBlockPowered(block.X, block.Y, true)
+				if block != nil && block.GetBlockType() == blocks.WiredLampType {
+					x, y := block.GetPosition()
+					newPowered := bh.IsBlockPowered(x, y, true)
+					block.SetPowered(newPowered)
 				}
 			}
 		}
 	}
 }
 
-func (bh *BlockHandler) GetSurroundingBlocks(x, y int) []*Block {
-	blocks := []*Block{}
+func (bh *BlockHandler) GetSurroundingBlocks(x, y int) map[blocks.Direction]blocks.Block {
+	surroundingBlocks := map[blocks.Direction]blocks.Block{}
 
-	left := bh.GetBlock(x-1, y)
-	right := bh.GetBlock(x+1, y)
-	up := bh.GetBlock(x, y-1)
-	down := bh.GetBlock(x, y+1)
+	surroundingBlocks[blocks.Left] = bh.GetBlock(x-1, y)
+	surroundingBlocks[blocks.Right] = bh.GetBlock(x+1, y)
+	surroundingBlocks[blocks.Up] = bh.GetBlock(x, y-1)
+	surroundingBlocks[blocks.Down] = bh.GetBlock(x, y+1)
 
-	for _, block := range []*Block{left, right, up, down} {
-		if block != nil {
-			blocks = append(blocks, block)
-		}
-	}
-
-	return blocks
+	return surroundingBlocks
 }
 
 func (bh *BlockHandler) UpdateSurroundingBlocks(x, y int) {
@@ -286,21 +120,22 @@ func (bh *BlockHandler) UpdateSurroundingBlocks(x, y int) {
 	bh.UpdateBlock(x, y+1)
 }
 
-func (bh *BlockHandler) GetCircuit(block *Block) (bool, []*Block) {
-	wires := []*Block{block}
+func (bh *BlockHandler) GetCircuit(block blocks.Block) (bool, []blocks.Block) {
+	wires := []blocks.Block{block}
 	powered := false
 
 	for i := 0; i < len(wires); i++ {
 		wire := wires[i]
 
-		if bh.IsBlockPowered(wire.X, wire.Y, false) {
+		x, y := wire.GetPosition()
+		if bh.IsBlockPowered(x, y, false) {
 			powered = true
 		}
 
-		surroundingBlocks := bh.GetSurroundingBlocks(wire.X, wire.Y)
+		surroundingBlocks := bh.GetSurroundingBlocks(x, y)
 
 		for _, wire = range surroundingBlocks {
-			if wire.BlockType == Wire && !contains(wires, wire) {
+			if wire != nil && wire.GetBlockType() == blocks.WireType && !contains(wires, wire) {
 				wires = append(wires, wire)
 			}
 		}
@@ -309,17 +144,17 @@ func (bh *BlockHandler) GetCircuit(block *Block) (bool, []*Block) {
 	return powered, wires
 }
 
-func (bh *BlockHandler) NewBlock(cursor *Cursor, insertBlock bool) *Block {
+func (bh *BlockHandler) NewBlock(cursor *Cursor, insertBlock bool) blocks.Block {
 	x := cursor.X
 	y := cursor.Y
 
-	newBlock := &Block{
-		BlockType: cursor.SelectedBlockType,
-		Powered:   bh.IsBlockPowered(x, y, true),
-		X:         x,
-		Y:         y,
-		Direction: cursor.Direction,
-	}
+	newBlock := blocks.NewBlock(
+		cursor.SelectedBlockType,
+		bh.IsBlockPowered(x, y, true),
+		x,
+		y,
+		cursor.Direction,
+	)
 
 	if insertBlock {
 		bh.Blocks = append(bh.Blocks, newBlock)

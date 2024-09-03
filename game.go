@@ -1,6 +1,8 @@
 package main
 
 import (
+	"redstone/blocks"
+
 	"github.com/gdamore/tcell/v2"
 )
 
@@ -80,7 +82,7 @@ func (g *Game) HandleInput(ev *tcell.EventKey) {
 		}
 
 	case tcell.KeyEnter:
-		if g.cursor.SelectedBlockType == EmptyCursor {
+		if g.cursor.SelectedBlockType == blocks.EmptyBlockType {
 			x, y := g.cursor.X, g.cursor.Y
 			selectedBlock := g.block_handler.GetBlock(x, y)
 
@@ -88,8 +90,8 @@ func (g *Game) HandleInput(ev *tcell.EventKey) {
 				return
 			}
 
-			if selectedBlock.BlockType == Lever {
-				selectedBlock.Powered = !selectedBlock.Powered
+			if selectedBlock.GetBlockType() == blocks.LeverType {
+				selectedBlock.SetPowered(!selectedBlock.IsPowered())
 
 				g.block_handler.UpdateSurroundingBlocks(x, y)
 			}
@@ -98,30 +100,30 @@ func (g *Game) HandleInput(ev *tcell.EventKey) {
 		}
 
 	case tcell.KeyEscape:
-		g.cursor.SelectedBlockType = EmptyCursor
+		g.cursor.SelectedBlockType = blocks.EmptyBlockType
 
 	case tcell.KeyRune:
 		switch ev.Rune() {
 		case 'w':
-			g.cursor.SelectedBlockType = Wire
+			g.cursor.SelectedBlockType = blocks.WireType
 		case 'p':
-			g.cursor.SelectedBlockType = PoweredBlock
+			g.cursor.SelectedBlockType = blocks.PoweredBlockType
 		case 'l':
-			g.cursor.SelectedBlockType = WiredLamp
+			g.cursor.SelectedBlockType = blocks.WiredLampType
 		case 't':
-			g.cursor.SelectedBlockType = Lever
+			g.cursor.SelectedBlockType = blocks.LeverType
 		case 'i':
-			g.cursor.SelectedBlockType = Inverter
+			g.cursor.SelectedBlockType = blocks.InverterType
 		case 'r':
 			switch g.cursor.Direction {
-			case Right:
-				g.cursor.Direction = Down
-			case Down:
-				g.cursor.Direction = Left
-			case Left:
-				g.cursor.Direction = Up
-			case Up:
-				g.cursor.Direction = Right
+			case blocks.Right:
+				g.cursor.Direction = blocks.Down
+			case blocks.Down:
+				g.cursor.Direction = blocks.Left
+			case blocks.Left:
+				g.cursor.Direction = blocks.Up
+			case blocks.Up:
+				g.cursor.Direction = blocks.Right
 			}
 
 		default:

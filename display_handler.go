@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"redstone/blocks"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -57,20 +58,24 @@ func (dh *DisplayHandler) DrawCursor(cursor *Cursor) {
 	block_handler := dh.game.block_handler
 
 	cursorBlock := block_handler.NewBlock(cursor, false)
+	surroundingBlocks := block_handler.GetSurroundingBlocks(cursor.X, cursor.Y)
 
-	char := block_handler.GetBlockRune(cursorBlock)
+	char := cursorBlock.GetRune(surroundingBlocks)
 
 	s := dh.screen
 	s.SetContent(cursor.X, cursor.Y, char, nil, dh.styles.TextStyle)
 }
 
-func (dh *DisplayHandler) DrawBlock(block *Block) {
+func (dh *DisplayHandler) DrawBlock(block blocks.Block) {
 	block_handler := dh.game.block_handler
-	char := block_handler.GetBlockRune(block)
+
+	x, y := block.GetPosition()
+	surroundingBlocks := block_handler.GetSurroundingBlocks(x, y)
+	char := block.GetRune(surroundingBlocks)
 
 	s := dh.screen
 
-	s.SetContent(block.X, block.Y, char, nil, dh.styles.DefaultStyle)
+	s.SetContent(x, y, char, nil, dh.styles.DefaultStyle)
 }
 
 func (dh *DisplayHandler) RedrawScreen() {
