@@ -8,4 +8,19 @@ const (
 	Up
 	Down
 	NonSurrounding
+	NoDirection
 )
+
+func GetOppositeDirection(dir Direction) Direction {
+	switch dir {
+	case Left:
+		return Right
+	case Right:
+		return Left
+	case Up:
+		return Down
+	case Down:
+		return Up
+	}
+	return NoDirection
+}

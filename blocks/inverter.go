@@ -12,18 +12,22 @@ func NewInverter(baseBlock BaseBlock, direction Direction) *Inverter {
 	}
 }
 
+func (i *Inverter) GetDirection() Direction {
+	return i.Direction
+}
+
 func (i *Inverter) GetRune(surroundingBlocks map[Direction]Block) rune {
 	switch i.Direction {
 	case Left:
-		return '⊣'
+		return '◀'
 	case Right:
-		return '⊢'
+		return '▶'
 	case Down:
-		return '⊤'
+		return '▼'
 	case Up:
-		return '⊥'
+		return '▲'
 	}
-	return '⊢'
+	return ' '
 }
 
 func (i *Inverter) ConnectsFrom(direction Direction) bool {

@@ -18,6 +18,7 @@ type Block interface {
 	ConnectsFrom(direction Direction) bool
 	IsPowered() bool
 	SetPowered(powered bool)
+	GetDirection() Direction
 }
 
 func NewBlock(blockType BlockType, powered bool, x, y int, direction Direction) Block {
@@ -55,6 +56,10 @@ type BaseBlock struct {
 
 func (b *BaseBlock) GetPosition() (int, int) {
 	return b.X, b.Y
+}
+
+func (b *BaseBlock) GetDirection() Direction {
+	return NoDirection
 }
 
 func (b *BaseBlock) GetRune(surroundingBlocks map[Direction]Block) rune {

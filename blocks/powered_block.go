@@ -11,5 +11,5 @@ func NewPoweredBlock(baseBlock BaseBlock) *PoweredBlock {
 }
 
 func (pb *PoweredBlock) GetRune(surroundingBlocks map[Direction]Block) rune {
-	return '▲'
+	return '◆'
 }

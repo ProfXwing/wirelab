@@ -64,12 +64,32 @@ func (bh *BlockHandler) IsBlockPowered(x, y int, includeWire bool) bool {
 		block := bh.GetBlock(x, y)
 		return block != nil && block.GetBlockType() == blocks.LeverType && block.IsPowered()
 	}
+	isConnectedToPoweredInverter := func(x, y int) bool {
+		surroundingBlocks := bh.GetSurroundingBlocks(x, y)
+
+		for direction, block := range surroundingBlocks {
+			if block == nil {
+				continue
+			}
+
+			if block.GetBlockType() == blocks.InverterType && block.IsPowered() {
+				inverterDirection := block.GetDirection()
+
+				if inverterDirection == blocks.GetOppositeDirection(direction) {
+					return true
+				}
+			}
+		}
+
+		return false
+	}
 
 	connectedToPoweredBlock := testSurroundingBlocks(x, y, isPoweredBlock)
 	connectedToPoweredLever := testSurroundingBlocks(x, y, isPoweredLever)
 	connectedToPoweredWire := testSurroundingBlocks(x, y, isPoweredWire)
+	connectedToPoweredInverter := isConnectedToPoweredInverter(x, y)
 
-	powered := connectedToPoweredBlock || connectedToPoweredLever
+	powered := connectedToPoweredBlock || connectedToPoweredLever || connectedToPoweredInverter
 	if includeWire {
 		powered = powered || connectedToPoweredWire
 	}
@@ -92,10 +112,32 @@ func (bh *BlockHandler) UpdateBlock(x, y int) {
 			surroundingBlocks := bh.GetSurroundingBlocks(wireX, wireY)
 
 			for _, block := range surroundingBlocks {
-				if block != nil && block.GetBlockType() == blocks.WiredLampType {
-					x, y := block.GetPosition()
+				if block == nil {
+					continue
+				}
+
+				blockType := block.GetBlockType()
+				x, y := block.GetPosition()
+
+				if blockType == blocks.WiredLampType {
 					newPowered := bh.IsBlockPowered(x, y, true)
 					block.SetPowered(newPowered)
+				}
+
+				if blockType == blocks.InverterType {
+					inverterSurrounding := bh.GetSurroundingBlocks(x, y)
+					direction := block.GetDirection()
+					poweredDirection := blocks.GetOppositeDirection(direction)
+
+					if wire == inverterSurrounding[poweredDirection] {
+						block.SetPowered(!powered)
+
+						connectedBlock := inverterSurrounding[direction]
+						if connectedBlock != nil {
+							connectedX, connectedY := inverterSurrounding[direction].GetPosition()
+							bh.UpdateBlock(connectedX, connectedY)
+						}
+					}
 				}
 			}
 		}
@@ -148,9 +190,15 @@ func (bh *BlockHandler) NewBlock(cursor *Cursor, insertBlock bool) blocks.Block 
 	x := cursor.X
 	y := cursor.Y
 
+	blockType := cursor.SelectedBlockType
+	powered := bh.IsBlockPowered(x, y, true)
+	if blockType == blocks.InverterType {
+		powered = !powered
+	}
+
 	newBlock := blocks.NewBlock(
-		cursor.SelectedBlockType,
-		bh.IsBlockPowered(x, y, true),
+		blockType,
+		powered,
 		x,
 		y,
 		cursor.Direction,
